@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🐾 Cute Animal Memory</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;color:#573e60;background:linear-gradient(135deg,#fff0f6,#f0edff,#eafff5);min-height:100vh}
+header{padding:20px;text-align:center}
+h1{color:#ed679d;margin:4px;font-size:clamp(26px,6vw,40px)}
+p{color:#8b7895}
+main{max-width:850px;margin:auto;padding:12px}
+.panel{background:#ffffffdb;border:2px solid white;border-radius:24px;padding:20px;box-shadow:0 10px 35px #8b679b20;margin-bottom:16px}
+button,select{font:inherit;cursor:pointer;border:0;border-radius:13px;padding:11px 15px;font-weight:bold}
+button{background:#ffe0ed;color:#a53e6d}
+button:active{transform:scale(.96)}
+.primary{background:#f477aa;color:white}
+.menu,.game,.stats{display:none}
+.menu.active,.game.active,.stats.active{display:block}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.choice{background:white;border:2px solid #f6dce9}
+.choice.selected{border-color:#ed679d;background:#fff0f6}
+.levels{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px}
+.levels button{padding:10px 2px}
+.levels button:disabled{opacity:.3;cursor:not-allowed}
+.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0}
+.stat{background:white;border-radius:13px;padding:10px 3px;text-align:center}
+.stat b{display:block;font-size:clamp(16px,4vw,24px);color:#946be4}
+.stat small{font-size:11px;color:#8b7895}
+.progress{height:8px;background:#eee3f3;border-radius:9px;overflow:hidden;margin-bottom:15px}
+.progress div{height:100%;width:0;background:linear-gradient(90deg,#f477aa,#977bf3)}
+.board{display:grid;gap:8px;max-width:600px;margin:auto}
+.card{padding:0;aspect-ratio:1;border-radius:14px;background:transparent;perspective:600px}
+.inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .4s}
+.card.open .inner,.card.matched .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:grid;place-items:center;border-radius:14px;backface-visibility:hidden;font-size:clamp(24px,7vw,48px);border:2px solid white;box-shadow:0 3px 10px #8b679b16}
+.front{background:linear-gradient(145deg,#ffb9d2,#f77cac);color:white;font-size:30px}
+.back{background:white;transform:rotateY(180deg)}
+.matched .back{background:#d7ffeb;animation:pop .35s}
+.wrong{animation:shake .3s}
+.actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:16px}
+.message{text-align:center;min-height:24px;margin:12px}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #f2e7f4;text-align:center}
+.overlay{display:none;position:fixed;inset:0;background:#44314d99;z-index:5;place-items:center;padding:16px}
+.overlay.show{display:grid}
+.modal{background:white;border-radius:24px;padding:25px;text-align:center;width:min(400px,100%)}
+.big{font-size:55px}
+.confetti{position:fixed;top:-15px;width:9px;height:15px;z-index:10;pointer-events:none;animation:fall 2s linear forwards}
+@keyframes pop{50%{transform:rotateY(180deg) scale(1.12)}}
+@keyframes shake{25%,75%{translate:-5px}50%{translate:5px}}
+@keyframes fall{to{transform:translateY(110vh) rotate(700deg)}}
+@media(max-width:500px){main{padding:8px}.panel{padding:13px}.choices{grid-template-columns:1fr}.info{grid-template-columns:repeat(2,1fr)}.board{gap:5px}.face{border-radius:9px}.card{border-radius:9px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐾 Animal Pairs</h1>
+  <div>เกมจับคู่สัตว์น้อยแสนซน 💗</div>
+</header>
+<main>
+<section class="panel menu active" id="menu">
+  <h2>🌈 พร้อมเล่นหรือยัง?</h2>
+  <p>จำตำแหน่งสัตว์ แล้วเปิดการ์ดที่เหมือนกันให้ครบก่อนหมดเวลา!</p>
+  <h3>เลือกระดับความยาก</h3>
+  <div class="choices">
+    <button class="choice selected" data-d="easy">🌷 Easy<br>3 × 4 · 6 คู่</button>
+    <button class="choice" data-d="medium">🪻 Medium<br>4 × 4 · 8 คู่</button>
+    <button class="choice" data-d="hard">🔥 Hard<br>4 × 5–6 · 10–12 คู่</button>
+  </div>
+  <h3>เลือกด่าน 1–20</h3>
+  <div id="levelText">ปลดล็อกแล้ว 1 / 20 ด่าน</div>
+  <div class="levels" id="levels"></div>
+  <div class="actions">
+    <button class="primary" onclick="start(Math.min(save.unlocked,20))">▶ เล่นต่อ</button>
+    <button onclick="showStats()">📊 สถิติ</button>
+  </div>
+</section>
+
+<section class="panel game" id="game">
+  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <h2 id="title">ด่าน 1</h2>
+    <button onclick="home()">⌂ เมนูหลัก</button>
+  </div>
+  <div class="info">
+    <div class="stat"><b id="time">01:30</b><small>⏱ เวลา</small></div>
+    <div class="stat"><b id="moves">0</b><small>👆 จำนวนครั้งที่เปิด</small></div>
+    <div class="stat"><b id="pairs">0/6</b><small>💗 จับคู่แล้ว</small></div>
+    <div class="stat"><b id="streak">0 🔥</b><small>🏆 ชนะต่อเนื่อง</small></div>
+  </div>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="board" id="board"></div>
+  <div class="message" id="message">เลือกการ์ด 2 ใบเพื่อจับคู่!</div>
+  <div class="actions">
+    <button onclick="start(level)">↻ เริ่มใหม่</button>
+    <button id="pause" onclick="togglePause()">Ⅱ พักเกม</button>
+    <button onclick="toggleSound()" id="sound">🔊 เสียงเปิด</button>
+  </div>
+</section>
+
+<section class="panel stats" id="statsPage">
+  <h2>📊 สถิติของฉัน</h2>
+  <div class="info">
+    <div class="stat"><b id="bestLevel">0/20</b><small>ด่านสูงสุด</small></div>
+    <div class="stat"><b id="wins">0</b><small>ด่านที่ชนะ</small></div>
+    <div class="stat"><b id="bestStreak">0</b><small>Win Streak สูงสุด</small></div>
+    <div class="stat"><b id="fewest">—</b><small>เปิดน้อยที่สุด</small></div>
+  </div>
+  <div style="overflow:auto">
+    <table><thead><tr><th>ด่าน</th><th>ชนะ</th><th>เวลาดีที่สุด</th><th>เปิดน้อยสุด</th></tr></thead><tbody id="table"></tbody></table>
+  </div>
+  <div class="actions">
+    <button onclick="home()">⌂ กลับเมนู</button>
+    <button onclick="resetStats()">🗑 ล้างสถิติ</button>
+  </div>
+</section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="big" id="emoji">⏸️</div>
+    <h2 id="modalTitle">พักเกม</h2>
+    <p id="modalText"></p>
+    <div class="actions" id="modalActions"></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const animals=['🐶','🐱','🐼','🐰','🦊','🦁','🐯','🐨','🦄','🐷','🐸','🐵','🐹','🐻','🐮','🐣','🦋','🐙','🐢','🐧','🦉','🐬'];
+const settings={easy:{pairs:6,cols:3,time:90},medium:{pairs:8,cols:4,time:100},hard:{pairs:10,cols:5,time:120}};
+const key='cuteAnimalMemory_v1';
+const fresh=()=>({unlocked:1,bestLevel:0,wins:0,streak:0,bestStreak:0,fewest:null,levels:{}});
+let save;try{save={...fresh(),...JSON.parse(localStorage.getItem(key)||'{}')}}catch{save=fresh()}
+let difficulty='easy',level=1,deck=[],first=null,second=null,moves=0,matched=0,left=90,timer=null,locked=false,paused=false,soundOn=true,ctx=null,token=0;
+function persist(){try{localStorage.setItem(key,JSON.stringify(save))}catch{}}
+function screen(name){['menu','game','statsPage'].forEach(x=>$(x).classList.toggle('active',x===name))}
+document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{difficulty=b.dataset.d;document.querySelectorAll('[data-d]').forEach(x=>x.classList.toggle('selected',x===b))});
+function cfg(){let base=settings[difficulty],p=base.pairs;
+if(difficulty==='easy')p=Math.min(8,6+Math.floor((level-1)/7));
+if(difficulty==='medium')p=Math.min(10,8+Math.floor((level-1)/7));
+if(difficulty==='hard')p=Math.min(12,10+Math.floor((level-1)/5));
+return {pairs:p,cols:p===6?3:p===8?4:p===10?5:6,time:Math.max(35,base.time-(level-1)*3)}}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function renderLevels(){$('levels').innerHTML='';for(let i=1;i<=20;i++){let b=document.createElement('button');b.textContent=save.levels[i]?.wins?'✓ '+i:i;b.disabled=i>save.unlocked;b.onclick=()=>start(i);$('levels').append(b)}$('levelText').textContent=`ปลดล็อกแล้ว ${save.unlocked}/20 ด่าน`;}
+function start(l){level=l;token++;clearInterval(timer);screen('game');paused=false;locked=false;first=second=null;moves=matched=0;let c=cfg();left=c.time;
+$('title').textContent=`ด่าน ${level} / 20`; $('time').textContent=fmt(left);$('moves').textContent='0';$('pairs').textContent=`0/${c.pairs}`;$('streak').textContent=save.streak+' 🔥';$('bar').style.width='0%';$('message').textContent='หาคู่สัตว์ที่เหมือนกันให้ครบ!';
+$('pause').textContent='Ⅱ พักเกม';$('time').style.color='';
+let selected=shuffle([...animals]).slice(0,c.pairs);
+deck=shuffle([...selected,...selected].map((a,i)=>({id:i,a,open:false,matched:false})));
+$('board').style.gridTemplateColumns=`repeat(${c.cols},minmax(0,1fr))`;$('board').innerHTML='';
+deck.forEach(card=>{let b=document.createElement('button');b.className='card';b.innerHTML='<div class="inner"><div class="face front">♡</div><div class="face back"></div></div>';b.onclick=()=>flip(card.id,b);$('board').append(b)});
+timer=setInterval(tick,1000)}
+function fmt(n){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
+function tick(){if(paused||locked)return;left--;$('time').textContent=fmt(left);if(left<=10)$('time').style.color='#ed477b';if(left<=0)finish(false)}
+function beep(type){if(!soundOn)return;try{ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();let seq={flip:[420],match:[660,880],wrong:[180],win:[523,659,784,1047],lose:[300,180]}[type]||[440];seq.forEach((f,i)=>{let o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12+i*.1);o.stop(ctx.currentTime+.14+i*.1)})}catch{}}
+function flip(id,b){if(paused||locked)return;let c=deck.find(x=>x.id===id);if(c.open||c.matched)return;c.open=true;b.classList.add('open');b.querySelector('.back').textContent=c.a;beep('flip');
+if(!first){first={c,b};return}second={c,b};moves++;$('moves').textContent=moves;locked=true;let t=token;
+if(first.c.a===second.c.a){first.c.matched=second.c.matched=true;first.b.classList.add('matched');second.b.classList.add('matched');matched++;beep('match');$('pairs').textContent=`${matched}/${cfg().pairs}`;$('bar').style.width=(matched/cfg().pairs*100)+'%';setTimeout(()=>{if(t!==token)return;first=second=null;locked=false;if(matched===cfg().pairs)finish(true)},400)}
+else{beep('wrong');first.b.classList.add('wrong');second.b.classList.add('wrong');setTimeout(()=>{if(t!==token)return;[first,second].forEach(x=>{x.c.open=false;x.b.classList.remove('open','wrong')});first=second=null;locked=false},750)}}
+function finish(won){clearInterval(timer);if(won){let used=cfg().time-left;save.wins++;save.streak++;save.bestStreak=Math.max(save.bestStreak,save.streak);save.bestLevel=Math.max(save.bestLevel,level);save.unlocked=Math.max(save.unlocked,Math.min(20,level+1));save.fewest=save.fewest==null?moves:Math.min(save.fewest,moves);let s=save.levels[level]||{wins:0,bestTime:null,fewest:null};s.wins++;s.bestTime=s.bestTime==null?used:Math.min(s.bestTime,used);s.fewest=s.fewest==null?moves:Math.min(s.fewest,moves);save.levels[level]=s;confetti();beep('win')}else{save.streak=0;beep('lose')}
+persist();renderLevels();$('emoji').textContent=won?'🎉':'💖';$('modalTitle').textContent=won?(level===20?'เก่งที่สุด! ครบ 20 ด่านแล้ว':'ผ่านด่านแล้ว!'):'หมดเวลาแล้ว';$('modalText').textContent=won?`ใช้เวลา ${fmt(cfg().time-left)} · เปิดการ์ด ${moves} ครั้ง`:'ลองอีกครั้งนะ คุณทำได้แน่นอน!';
+let actions=$('modalActions');actions.innerHTML='';addAction(won&&level<20?'ด่านถัดไป ➜':'↻ เล่นอีกครั้ง','primary',()=>{hide();start(won&&level<20?level+1:level)});addAction('⌂ เมนูหลัก','',()=>{hide();home()});$('overlay').classList.add('show')}
+function addAction(text,cls,fn){let b=document.createElement('button');b.textContent=text;b.className=cls;b.onclick=fn;$('modalActions').append(b)}
+function hide(){$('overlay').classList.remove('show')}
+function togglePause(){if(!paused){paused=true;clearInterval(timer);$('emoji').textContent='⏸️';$('modalTitle').textContent='พักเกม';$('modalText').textContent='เกมหยุดแล้ว การ์ดของคุณยังอยู่ครบ';$('modalActions').innerHTML='';addAction('▶ เล่นต่อ','primary',()=>{hide();paused=false;timer=setInterval(tick,1000)});addAction('↻ เริ่มใหม่','',()=>{hide();start(level)});addAction('⌂ เมนูหลัก','',()=>{hide();home()});$('overlay').classList.add('show')}else{paused=false;hide();timer=setInterval(tick,1000)}}
+function home(){clearInterval(timer);paused=false;screen('menu');renderLevels()}
+function toggleSound(){soundOn=!soundOn;$('sound').textContent=soundOn?'🔊 เสียงเปิด':'🔇 เสียงปิด';if(soundOn)beep('flip')}
+function confetti(){let colors=['#ff76a7','#a18bff','#ffcf5c','#69dcb3','#76d5ff'];for(let i=0;i<65;i++){let e=document.createElement('i');e.className='confetti';e.style.left=Math.random()*100+'vw';e.style.background=colors[i%colors.length];e.style.animationDelay=Math.random()*.6+'s';document.body.append(e);setTimeout(()=>e.remove(),2800)}}
+function showStats(){screen('statsPage');$('bestLevel').textContent=save.bestLevel+'/20';$('wins').textContent=save.wins;$('bestStreak').textContent=save.bestStreak;$('fewest').textContent=save.fewest??'—';$('table').innerHTML='';for(let i=1;i<=20;i++){let s=save.levels[i],tr=document.createElement('tr');[i,s?.wins||'—',s?.bestTime!=null?fmt(s.bestTime):'—',s?.fewest??'—'].forEach(v=>{let td=document.createElement('td');td.textContent=v;tr.append(td)});$('table').append(tr)}}
+function resetStats(){if(confirm('ล้างสถิติทั้งหมดใช่ไหม?')){save=fresh();persist();showStats();renderLevels()}}
+renderLevels();
+</script>
+</body>
+</html>
